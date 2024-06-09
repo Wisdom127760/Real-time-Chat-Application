@@ -7,6 +7,7 @@ const router = express.Router();
 const userRouter = require("./controllers/user");
 // Import the authentication router
 const authRouter = require("./controllers/auth");
+const session = require('express-session');
 
 dotenv.config();
 
@@ -23,8 +24,9 @@ try {
   console.error("mongodb connection error: ", error);
 }
 // Register the router as a middleware for all routes
-app.use(router);
 
+
+app.use(router);
 // Handle 404 errors for non-existent routes
 app.use( "*", (req, res) => {
   res.status(404).json({ error: "this route does not exist" });

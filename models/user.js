@@ -20,6 +20,10 @@ const usersSchema = new mongoose.Schema({
     password: {
       required: true,
       type: String,
+    },
+    resetToken: {
+      required: false,
+      type: String,
     }
   });
 

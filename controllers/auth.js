@@ -1,11 +1,21 @@
 const express = require('express');
 const router = express.Router();
+const dotenv = require("dotenv");
 const user = require('../models/user');
+const {sendConfirmationEmail} = require('../service/authService');
 const crypto = require('crypto');
 const bycrpt = require("bcrypt");
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const session = require('express-session');
+dotenv.config();    
+router.use(session({
+    secret: process.env.SECRET_KEY,
+    resave: false,
+    saveUninitialized: true
+  }));
 // Define your routes here
+
 router.post('/signup', async (req, res) => {
     const { firstname, lastname, email, username, password } = req.body;
     try {
@@ -25,10 +35,10 @@ router.post('/signup', async (req, res) => {
             res.status(400).send({ message: "Username must be alphanumeric" });
             return;
         }
-        if (!/^[a-zA-Z0-9]+@[a-zA-Z]+\.[a-zA-Z]+$/.test(email)) {
-            res.status(400).send({ message: "Invalid email" });
-            return;
-        }
+        // if (!/^[a-zA-Z0-9]+@[a-zA-Z]+\.[a-zA-Z]+$/.test(email)) {
+        //     res.status(400).send({ message: "Invalid email" });
+        //     return;
+        // }
         if (!/^[a-zA-Z0-9]+$/.test(password)) {
             res.status(400).send({ message: "Password must be alphanumeric" });
             return;
@@ -74,7 +84,7 @@ router.post('/login', async (req, res) => {
             //console.log(prevUser._id);
 
             const token = jwt.sign({ _id: prevUser._id }, process.env.SECRET_KEY, { expiresIn: '1h' });
-            //console.log(token);
+            req.session.user = user;
             res.status(200).json({ message: 'Login successful', token: token });
 
         }catch(err){
@@ -85,11 +95,13 @@ router.post('/login', async (req, res) => {
         
     });
 
-
 router.post('/logout', (req, res) => {
+
+    const getUser = req.params;
+    console.log(getUser);
     try {
-        if (!req.session.user) {
-            res.status(401).json({ message: 'Unauthorized' });
+        if (!getUser) {
+            res.status(401).json({ message: 'Unauthorized Access' });
             return;
         }
         req.session.destroy();
@@ -97,52 +109,106 @@ router.post('/logout', (req, res) => {
     } catch (err) {
         res.status(500).json({ message: 'Error logging out' });
     }
-});
+}); //We will focus on this route in the next task
 
-router.post('/reset-password', async (req, res) => {
-    const { email } = req.body;
+router.post('/request-password-reset', async (req, res) => {
+    const {email} = req.body;
     try {
         // Check if the email is valid
-        if (!/^[a-zA-Z0-9]+@[a-zA-Z]+\.[a-zA-Z]+$/.test(email)) {
-            res.status(400).send({ message: "Invalid email" });
-            return;
-        }
+        // if (!/^[a-zA-Z0-9]+@[a-zA-Z]+\.[a-zA-Z]+$/.test(email)) {
+        //     res.status(400).send({ message: "Invalid email" });
+        //     return;
+        // }
         // Find the user with the given email
         const prevUser = await user.findOne({ email: email });
+        //console.log(prevUser.email);
         if (!prevUser) {
             res.status(404).json({ message: 'User not found' });
             return;
         }
-        // Generate a new password
-        const newPassword = generateNewPassword();
-        // Hash the new password
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-        // Update the user's password
-        prevUser.password = hashedPassword;
+        const token = crypto.randomBytes(20).toString('hex');
+        prevUser.resetToken = token;
+        prevUser.resetTokenExpiration = Date.now() + 3600000; // Token expires in 1 hour
         await prevUser.save();
-        // Send the new password to the user's email
-        sendNewPasswordEmail(email, newPassword);
-        res.status(200).json({ message: 'Password reset successful' });
+        //console.log(token);
+
+        sendConfirmationEmail(email, token);
+        
+
+        res.status(200).json({ message: 'Confirmation email sent' });
+
     } catch (err) {
         res.status(500).json({ message: 'Error resetting password' });
     }
 });
 
-router.post('/change-password', (req, res) => {
+router.post('/confirm-password-reset', async (req, res) => {
+    const {email, token, newPassword, confirmPassword} = req.body;
+    try{
+        // Check if the email is valid
+        // if (!/^[a-zA-Z0-9]+@[a-zA-Z]+\.[a-zA-Z]+$/.test(email)) {
+        //     res.status(400).send({ message: "Invalid email" });
+        //     return;
+        // }
+
+        // Find the user with the given email
+        const prevUser = await user.findOne({ email: email});
+
+        if (!prevUser) {
+            res.status(404).json({ message: 'User not found' });
+            return;
+        }
+        console.log("user.resetToken", prevUser.resetToken);
+        if (!prevUser.resetToken || prevUser.resetToken !== token ){
+            return res.status(400).json({ message: 'Invalid or expired token' });
+          }
+
+        if (newPassword !== confirmPassword) {
+            res.status(400).json({ message: 'Passwords do not match' });
+            return;
+        }
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        prevUser.password = hashedPassword;
+        prevUser.resetToken = undefined;
+        //prevUser.resetPasswordExpires = undefined;
+        await prevUser.save();
+
+        res.status(200).json({ message: 'Password reset successful' });
+
+    }catch(err){
+        res.status(500).json({ message: 'Error resetting password' });
+    }
+});
+router.post('/change-password/:_id', async (req, res) => {
     // Implement change password logic here
-    res.status(200).json({ message: 'Password change successful' });
+    const {_id} = req.params;
+    const {password, newPassword, confirmPassword} = req.body;
+    try {
+        const prevUser = await user.findOne({ _id: _id});
+        if (!prevUser) {
+            res.status(404).json({ message: 'User not found' });
+            return;
+        }
+
+        const isMatch = await bcrypt.compareSync(password, prevUser.password);
+        if (!isMatch) {
+            res.status(401).json({ message: 'Invalid password' });
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            res.status(400).json({ message: 'Passwords do not match' });
+            return;
+        }
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        prevUser.password = hashedPassword; 
+        await prevUser.save();
+
+        res.status(200).json({ message: 'Password change successful' });
+    } catch (err) {
+        res.status(500).json({ message: 'Error changing password' });
+    }
 });
 
-module.exports = router;
-
-router.post('/reset-password', (req, res) => {
-    // Implement reset password logic here
-    res.status(200).json({ message: 'Password reset successful' });
-});
-
-router.post('/change-password', (req, res) => {
-    // Implement change password logic here
-    res.status(200).json({ message: 'Password change successful' });
-});
 
 module.exports = router;
