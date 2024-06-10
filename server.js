@@ -9,6 +9,21 @@ const userRouter = require("./controllers/user");
 const authRouter = require("./controllers/auth");
 const session = require('express-session');
 
+// const fs = require('fs');
+// const path = require('path');
+// const multer = require('multer');
+// const storage = multer.diskStorage({
+//   destination: (req, file, cb) => {
+//       cb(null, 'uploads')
+//   },
+//   filename: (req, file, cb) => {
+//       cb(null, file.fieldname + '-' + Date.now())
+//   }
+// });
+// const upload = multer({ storage: storage});
+
+
+
 dotenv.config();
 
 
