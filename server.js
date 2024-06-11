@@ -13,7 +13,6 @@ const session = require('express-session');
 //Where Socket.io is being used
 const http = require('http');
 const server = http.createServer(app);
-//const {Server} = require('socket.io');
 const { Server } = require('socket.io'); // Import the Server object from socket.io
 //const io = new Server(server);
 
@@ -74,6 +73,6 @@ io.on('connection', (socket) => { // Add a socket connection event handler
 
 const port = process.env.PORT;
 
-app.listen(port, () => {
+server.listen(port, () => {
     console.log(`App listening at http://localhost:${port}`);
 });
