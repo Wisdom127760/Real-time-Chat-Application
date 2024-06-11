@@ -16,12 +16,12 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage});
 
 
-// Define your routes here
+// Get all users
 router.get('/', async (req, res) => {
     const allPrevUser = await users.find();
     res.status(200).json(allPrevUser);
 });
-
+//Get a specific user
 router.get('/:_id', async (req, res)=>{
     const {_id}  = req.params;
     try{
@@ -32,7 +32,7 @@ router.get('/:_id', async (req, res)=>{
         res.status(400).send({message: "Invalid user id"});
     }
 });
-
+//Create a new user profile with a profile image
 router.post('/userprofile', upload.single('img') , async (req,res)=>{
     const {userId, phone, img, createdAt} = req.body;
     

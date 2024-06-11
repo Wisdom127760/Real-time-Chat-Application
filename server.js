@@ -1,6 +1,7 @@
 const express = require("express"); // Express framework for building web applications
 const dotenv = require("dotenv"); // Dotenv module for loading environment variables from a.env file
 const mongoose = require("mongoose"); // Mongoose module for interacting with MongoDB
+const app = express(); // Initialize an Express application
 // Initialize an Express router
 const router = express.Router();
 // Import the user router
@@ -8,6 +9,13 @@ const userRouter = require("./controllers/user");
 // Import the authentication router
 const authRouter = require("./controllers/auth");
 const session = require('express-session');
+
+//Where Socket.io is being used
+const http = require('http');
+const server = http.createServer(app);
+//const {Server} = require('socket.io');
+const { Server } = require('socket.io'); // Import the Server object from socket.io
+//const io = new Server(server);
 
 // const fs = require('fs');
 // const path = require('path');
@@ -26,8 +34,6 @@ const session = require('express-session');
 
 dotenv.config();
 
-
-const app = express();
 
 app.use(express.json());
 
@@ -50,8 +56,24 @@ app.use( "*", (req, res) => {
 router.use("/users", userRouter); // Register the user router
 router.use("/auth", authRouter); // Register the authentication router
 
+// My html file
+router.get('/', async (req, res) => {
+  res.sendFile(__dirname + '/index.html');
+});
+
+// My socket.io connection
+const io = new Server(server); // Create a new instance of the Server object
+
+io.on('connection', (socket) => { // Add a socket connection event handler
+  console.log('New client connected');
+
+  socket.on('disconnect', () => {
+      console.log('Client disconnected');
+  });
+});
+
 const port = process.env.PORT;
 
 app.listen(port, () => {
-    console.log(`App listening at https://localhost:${port}`);
-  });
+    console.log(`App listening at http://localhost:${port}`);
+});
