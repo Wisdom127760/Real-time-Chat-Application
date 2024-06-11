@@ -64,11 +64,19 @@ router.get('/', async (req, res) => {
 const io = new Server(server); // Create a new instance of the Server object
 
 io.on('connection', (socket) => { // Add a socket connection event handler
-  console.log('New client connected');
+  //console.log('New client connected');
+  io.emit('chat message', 'User Connected!');
 
   socket.on('disconnect', () => {
-      console.log('Client disconnected');
+      //console.log('Client disconnected');
+      io.emit('chat message', 'User Disconnected!');
   });
+
+  socket.on('chat message', (msg) => {
+    io.emit('chat message', msg);
+    //console.log('message: ' + msg);
+  });
+
 });
 
 const port = process.env.PORT;

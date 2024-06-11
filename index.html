@@ -24,13 +24,24 @@
         <script>
         const socket = io();
 
-        // Handle 'messageFromServer' event
-        socket.on('messageFromServer', (data) => {
-            console.log('Received:', data);
+        const form = document.getElementById('form');
+        const input = document.getElementById('input');
+        const messages = document.getElementById('messages');
+
+        form.addEventListener('submit', function(e) {
+          e.preventDefault();
+          if (input.value) {
+            socket.emit('chat message', input.value);
+            input.value = '';
+          }
         });
 
-        // Emit 'messageFromClient' event
-        socket.emit('messageFromClient', { data: 'Hello from client!' });
+        socket.on('chat message', function(msg) {
+        var item = document.createElement('li');
+        item.textContent = msg;
+        messages.appendChild(item);
+        window.scrollTo(0, document.body.scrollHeight);
+      });
         </script>
   </body>
 </html>
