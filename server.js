@@ -65,15 +65,38 @@ io.on('connection', (socket) => { // Add a socket connection event handler
   //console.log('New client connected');
   io.emit('chat message', 'User Connected!');
 
+  socket.on('connect', function() {
+    var socketId = socket.id;
+    // ...
+  });
+
   socket.on('disconnect', () => {
       //console.log('Client disconnected');
       io.emit('chat message', 'User Disconnected!');
   });
 
-  socket.on('chat message', (msg) => {
+  socket.on('chat message', (user, msg, messageId) => {
     io.emit('chat message', msg);
+    io.to(socketId).emit('chat message', socket.username, msg, messageId)
     //console.log('message: ' + msg);
   });
+
+  socket.on('typing', (msg) => {
+    socket.broadcast.emit('typing', msg);
+  });
+
+  socket.on('stopTyping', () => {
+    socket.broadcast.emit('stopTyping');
+  });
+
+  socket.on('seen', (msg) => {
+    socket.broadcast.emit('seen', msg);
+  });
+  socket.on('delivered', (msg) => {
+    socket.broadcast.emit('delivered', msg);
+  });
+
+  socket.on
 
 });
 

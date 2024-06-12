@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const imageSchema = new mongoose.Schema({
+const userProfileSchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'UsersRealTimeChatApp',
@@ -46,4 +46,4 @@ const imageSchema = new mongoose.Schema({
     }
 });
  
-module.exports = mongoose.model('Image', imageSchema);
+module.exports = mongoose.model('userProfile', userProfileSchema);
