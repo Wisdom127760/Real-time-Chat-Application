@@ -44,8 +44,6 @@ try {
   console.error("mongodb connection error: ", error);
 }
 // Register the router as a middleware for all routes
-
-
 app.use(router);
 // Handle 404 errors for non-existent routes
 app.use( "*", (req, res) => {
