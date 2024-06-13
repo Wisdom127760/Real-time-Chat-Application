@@ -8,6 +8,10 @@ const router = express.Router();
 const userRouter = require("./controllers/user");
 // Import the authentication router
 const authRouter = require("./controllers/auth");
+const requestRouter = require("./controllers/request");
+// Import the chat router
+//const chatRouter = require("./controllers/chat");
+
 const session = require('express-session');
 
 //Where Socket.io is being used
@@ -52,6 +56,10 @@ app.use( "*", (req, res) => {
 
 router.use("/users", userRouter); // Register the user router
 router.use("/auth", authRouter); // Register the authentication router
+//router.use("/friends", friendsRouter); // Register the friends router 
+router.use("/request", requestRouter); // Register the request router
+//router.use("/chat", chatRouter); // Register the chat router
+
 
 // My html file
 router.get('/', async (req, res) => {
@@ -62,42 +70,24 @@ router.get('/', async (req, res) => {
 const io = new Server(server); // Create a new instance of the Server object
 
 io.on('connection', (socket) => { // Add a socket connection event handler
-  //console.log('New client connected');
   io.emit('chat message', 'User Connected!');
 
-  socket.on('connect', function() {
-    var socketId = socket.id;
-    // ...
-  });
-
   socket.on('disconnect', () => {
-      //console.log('Client disconnected');
-      io.emit('chat message', 'User Disconnected!');
+    io.emit('chat message', 'User Disconnected!');
   });
 
   socket.on('chat message', (user, msg, messageId) => {
-    io.emit('chat message', msg);
-    io.to(socketId).emit('chat message', socket.username, msg, messageId)
-    //console.log('message: ' + msg);
-  });
-
-  socket.on('typing', (msg) => {
-    socket.broadcast.emit('typing', msg);
-  });
-
-  socket.on('stopTyping', () => {
-    socket.broadcast.emit('stopTyping');
+    //io.emit('chat message', msg);
+    io.emit('chat message', user, msg, messageId);
   });
 
   socket.on('seen', (msg) => {
     socket.broadcast.emit('seen', msg);
   });
+
   socket.on('delivered', (msg) => {
     socket.broadcast.emit('delivered', msg);
   });
-
-  socket.on
-
 });
 
 const port = process.env.PORT;

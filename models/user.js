@@ -24,6 +24,31 @@ const usersSchema = new mongoose.Schema({
     resetToken: {
       required: false,
       type: String,
+    },
+    expireToken: {
+      required: false,
+      type: Date,
+    },
+    friendsList: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Friends",
+    }],
+    sentRequest: [{
+      type: String,
+      default: " ",
+    }],
+    request: [{
+      userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "UsersRealTimeChatApp",
+      },
+      username: {
+        type: String,
+      }
+    }],
+    totalRequest: {
+      type: Number,
+      default: 0,
     }
   });
 
