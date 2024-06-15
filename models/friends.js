@@ -1,3 +1,4 @@
+const { status } = require("express/lib/response");
 const mongoose = require("mongoose");
 
 const friendsSchema = new mongoose.Schema({
@@ -17,9 +18,10 @@ const friendsSchema = new mongoose.Schema({
         type: Date,
         default: Date.now,
     },  
-    accpeted: {
+    requestStatus: {
         type: Boolean,
-        default: false,
+        enum : ["pending", "accepted", "rejected"],
+        default: "pending",
     }
 
 

@@ -2,27 +2,56 @@ const express = require('express');
 const routers = express.Router();
 const users = require('../models/user');
 const friends = require('../models/friends');
-const { model } = require('mongoose');
+const { promise } = require('bcrypt/promises');
+const { getRequestBasedOnStatus, limitRequests } = require('../services/friendsService');
 
 routers.post('/sendrequest', async (req, res) => {
     const { userId, friendId } = req.body;
 
     // console.log(userId, friendId);
     try {
-        const user = await users.findOne({ _id: userId });
-        const friend = await users.findOne({ _id: friendId });
-        if (!user || !friend) {
-            res.status(400).send({ message: "Invalid user id" });
+
+        //check if user exists
+
+        const { sender, reciever }  = await promise.all([
+            users.findId({_id: userId}),
+            users.findId({_id: friendId}),
+        ]);
+
+        if (!sender || !reciever) {
+            res.status(404).send({ message: "Both sender and reciever must be valid users" });
             return;
+
         }
-        const prevFriend = await friends.findOne({ userId: userId, friendId: friendId });
-        if (prevFriend) {
-            res.status(400).send({ message: "Friend request already sent" });
-            return;
+        // check if sender and reciever are already friends
+        const isFriend = await promise.all([
+        
+            friends.find({ userId: userId}),
+            friends.find({ userId: friendId}),
+           
+        ]);
+        
+        if (isFriend[0] && isFriend[1]) {
+           return res.status(409).send({ message: `Both ${isFriend[0]} and ${isFriend[1]} are friends already` });
         }
-        const newFriend = new friends({ userId: userId, friendId: friendId });
-        newFriend.save();
-        res.status(200).send({ message: "Friend request sent" });
+        
+        
+
+
+        // const user = await users.findOne({ _id: userId });
+        // const friend = await users.findOne({ _id: friendId });
+        // if (!user || !friend) {
+        //     res.status(400).send({ message: "Invalid user id" });
+        //     return;
+        // }
+        // const prevFriend = await friends.findOne({ userId: userId, friendId: friendId });
+        // if (prevFriend) {
+        //     res.status(400).send({ message: "Friend request already sent" });
+        //     return;
+        // }
+        // const newFriend = new friends({ userId: userId, friendId: friendId });
+        // newFriend.save();
+        // res.status(200).send({ message: "Friend request sent" });
     } catch (error) {
         res.status(500).send({ message: "Error sending friend request" });
     }
