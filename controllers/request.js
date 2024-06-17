@@ -2,58 +2,83 @@ const express = require('express');
 const routers = express.Router();
 const users = require('../models/user');
 const friends = require('../models/friends');
-const { promise } = require('bcrypt/promises');
-const { getRequestBasedOnStatus, limitRequests } = require('../services/friendsService');
+const dotenv = require("dotenv");
+dotenv.config();
+//const { promise } = require('bcrypt/promises');
+const { getRequestBasedOnStatus} = require('../service/friendsService');
 
 routers.post('/sendrequest', async (req, res) => {
+
     const { userId, friendId } = req.body;
 
-    // console.log(userId, friendId);
+    console.log('Request Body:', userId, friendId);
+
     try {
-
-        //check if user exists
-
-        const { sender, reciever }  = await promise.all([
-            users.findId({_id: userId}),
-            users.findId({_id: friendId}),
+        // Find sender and receiver in the users collection
+        const [sender, receiver] = await Promise.all([
+            users.findById(userId),
+            users.findById(friendId),
         ]);
 
-        if (!sender || !reciever) {
-            res.status(404).send({ message: "Both sender and reciever must be valid users" });
+        if (!sender || !receiver) {
+            res.status(404).send({ message: "Both sender and receiver must be valid users" });
             return;
-
         }
-        // check if sender and reciever are already friends
-        const isFriend = await promise.all([
-        
-            friends.find({ userId: userId}),
-            friends.find({ userId: friendId}),
-           
-        ]);
-        
-        if (isFriend[0] && isFriend[1]) {
-           return res.status(409).send({ message: `Both ${isFriend[0]} and ${isFriend[1]} are friends already` });
+
+        // Check if a friendship already exists
+        const isFoundFriendship = await friends.find({
+            $or: [
+                { userId: userId, friendId: friendId },
+                { userId: friendId, friendId: userId }
+            ]
+        });
+
+        console.log('Friendship Check Result:', isFoundFriendship);
+
+        if (isFoundFriendship.length > 0) {
+
+            const isPending = isFoundFriendship.filter(friend => friend.requestStatus === "pending");
+            if (isPending.length > 0) {
+                return res.status(409).send({ message: `Friendship request already exists between ${sender.username} and ${receiver.username}. ${sender.username} is waiting for ${receiver.username} to accept the request!` });
+            }
+            const isAccepted = isFoundFriendship.filter(friend => friend.requestStatus === "accepted");
+            if (isAccepted.length > 0) {
+                return res.status(409).send({ message: `Friendship request already exists between ${sender.username} and ${receiver.username}.` });
+            }
         }
-        
-        
 
+        const isRequestSent = await getRequestBasedOnStatus(req, "pending");
+        if (isRequestSent.isFound && isRequestSent.docsCount > 0) {
+            return res.status(409).send({ message: `You already have a pending request for this user` });
+        }
+        //console.log('isRequestSent', isRequestSent);
 
-        // const user = await users.findOne({ _id: userId });
-        // const friend = await users.findOne({ _id: friendId });
-        // if (!user || !friend) {
-        //     res.status(400).send({ message: "Invalid user id" });
-        //     return;
-        // }
-        // const prevFriend = await friends.findOne({ userId: userId, friendId: friendId });
-        // if (prevFriend) {
-        //     res.status(400).send({ message: "Friend request already sent" });
-        //     return;
-        // }
-        // const newFriend = new friends({ userId: userId, friendId: friendId });
-        // newFriend.save();
-        // res.status(200).send({ message: "Friend request sent" });
+        const newFriendRequest = await friends.create({
+            userId: userId,
+            friendId: friendId,
+            requestStatus: "pending"
+        });
+
+        if (!newFriendRequest) {
+            return res.status(500).send({ message: "Error sending friend request" });
+        } else {
+            await users.findByIdAndUpdate(userId, {
+                $push: {
+                    sentRequest: newFriendRequest
+                }
+            }, { new: true });
+            return res.status(201).send({
+                message: "Friend request sent successfully",
+                data: newFriendRequest
+            });
+        }
+
     } catch (error) {
-        res.status(500).send({ message: "Error sending friend request" });
+        console.error('Error:', error);
+        res.status(500).send({
+            message: "Error sending friend request",
+            error: error.message
+        });
     }
 });
 
@@ -106,24 +131,35 @@ routers.post('/acceptrequest', async (req, res) => {
 }
 );
 routers.post('/rejectrequest', async (req, res) => {
-    const { userId, friendId } = req.body;
+    const { currentUser, friendId } = req.body;
+
+    console.log('Request Body:', currentUser, friendId);
     try {
-        const user = await users.findOne({ _id: userId });
+        const user = await users.findOne({ _id: currentUser });
         const friend = await users.findOne({ _id: friendId });
         if (!user || !friend) {
             res.status(400).send({ message: "Invalid user id" });
             return;
         }
-        const prevFriend = await friends.findOne({ userId: friendId, friendId: userId });
-        if (!prevFriend) {
-            res.status(400).send({ message: "No friend request found" });
-            return;
+
+        const requestStatus = await getRequestBasedOnStatus(req, "pending");
+
+        console.log('Request Status:', requestStatus);
+
+        if (!requestStatus.isFound && !requestStatus.docsCount > 0) {
+            return res.status(404).send({ message: `No pending request found for ${user.username}` });
         }
-        prevFriend.remove();
-        res.status(200).send({ message: "Friend request rejected" });
-    } catch (error) {
-        res.status(500).send({ message: "Error rejecting friend request" });
+        const pendingRequest = await friends.findOneAndUpdate({ userId: friendId, friendId: currentUser, requestStatus: "pending" }, { requestStatus: "rejected" }, { new: true });
+        if (!pendingRequest) {
+            return res.status(404).send({ message: `No pending request found for ${user.username}` });
+        }
+        return res.status(200).send({ message: "Friend request rejected" });
     }
-}); 
+    catch (error) {
+        res.status(500).send({
+            message: "Error rejecting friend request", error:
+                error.message});
+    }
+});
 
 module.exports = routers;

@@ -1,4 +1,4 @@
-const { status } = require("express/lib/response");
+// Description: Model for friends collection
 const mongoose = require("mongoose");
 
 const friendsSchema = new mongoose.Schema({
@@ -13,18 +13,19 @@ const friendsSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "UsersRealTimeChatApp",
         required: true,
-    },
-    createdAt: {
-        type: Date,
-        default: Date.now,
-    },  
+    }, 
     requestStatus: {
-        type: Boolean,
+        type: String,
         enum : ["pending", "accepted", "rejected"],
         default: "pending",
     }
+},
+    {
+        timestamps: true,
+    
+    }
 
 
-});
+);
 
 module.exports = mongoose.model("Friends", friendsSchema);
